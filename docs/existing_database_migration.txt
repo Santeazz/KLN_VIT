@@ -1,0 +1,204 @@
+ПРИВЕДЕНИЕ УЖЕ СУЩЕСТВУЮЩЕЙ БД К АКТУАЛЬНОЙ СХЕМЕ
+
+Этот файл нужен для случая, когда база данных уже была создана и частично заполнена.
+
+Важно:
+- разделение ФИО на last_name, first_name, middle_name в этом файле не рассматривается;
+- предполагается, что это уже сделано и данные уже перенесены;
+- цель этого файла: довести остальную структуру и данные до текущей модели проекта.
+
+Что изменилось в модели после старой версии БД:
+- поле checklist_criteria.is_required больше не используется;
+- все критерии считаются обязательными в прикладной логике;
+- observations.position должен совпадать с checklist_templates.position;
+- observations.violations_count теперь должен считаться как количество всех невыполненных критериев;
+- CryptoPro больше не используется;
+- в observation_signatures должны остаться signed_by_name, document_digest, signed_digest, raw_payload и signed_at;
+- поля provider и certificate_thumbprint больше не нужны;
+- enum observation_signatures_provider_enum больше не нужен.
+
+Что сделать
+
+1. Остановить backend.
+
+Причина:
+во время структурных изменений лучше не держать приложение подключенным к БД.
+
+2. Сделать резервную копию БД.
+
+Пример:
+
+pg_dump -U postgres -d kln_vit -f .\backup_before_kln_migration.sql
+
+3. На время миграции в backend/.env выставить:
+
+DB_SYNC=false
+
+Причина:
+лучше сначала вручную привести структуру и данные к нужному виду, а уже потом запускать приложение.
+
+4. Проверить, что ФИО уже действительно мигрированы.
+
+Минимальная проверка:
+- в таблицах users и employees есть поля last_name, first_name, middle_name;
+- старого поля full_name уже нет либо оно больше не используется.
+
+5. При желании сохранить служебные данные старых CryptoPro-подписей отдельно.
+
+Это не обязательно, но полезно, если в старой БД уже были подписи с provider = cryptopro.
+
+Пример:
+
+CREATE TABLE IF NOT EXISTS observation_signatures_legacy_meta AS
+SELECT
+  id,
+  provider,
+  certificate_thumbprint
+FROM observation_signatures
+WHERE false;
+
+INSERT INTO observation_signatures_legacy_meta (id, provider, certificate_thumbprint)
+SELECT
+  id,
+  provider,
+  certificate_thumbprint
+FROM observation_signatures
+WHERE provider IS NOT NULL
+   OR certificate_thumbprint IS NOT NULL;
+
+Если сохранять это не нужно, шаг можно пропустить.
+
+6. Выполнить миграционный SQL.
+
+Ниже приведен готовый скрипт. Его можно выполнить в psql целиком.
+
+BEGIN;
+
+-- 6.1. Удаляем больше не используемое поле обязательности критерия.
+ALTER TABLE checklist_criteria
+  DROP COLUMN IF EXISTS is_required;
+
+-- 6.2. Рабочая зона в observations теперь всегда должна идти от шаблона.
+-- Перед обновлением можно посмотреть, что именно будет изменено:
+-- SELECT o.id, o.position AS old_position, t.position AS template_position
+-- FROM observations o
+-- JOIN checklist_templates t ON t.id = o.template_id
+-- WHERE o.position IS DISTINCT FROM t.position;
+
+UPDATE observations o
+SET position = t.position
+FROM checklist_templates t
+WHERE o.template_id = t.id
+  AND o.position IS DISTINCT FROM t.position;
+
+-- 6.3. Пересчитываем агрегаты наблюдений по текущим результатам.
+-- Теперь violations_count = количество всех критериев, у которых passed = false.
+WITH aggregated AS (
+  SELECT
+    o.id AS observation_id,
+    COALESCE(SUM(r.score), 0) AS total_score,
+    COALESCE(SUM(r.max_score), 0) AS max_score,
+    COALESCE(COUNT(*) FILTER (WHERE r.passed = false), 0) AS violations_count
+  FROM observations o
+  LEFT JOIN observation_results r ON r.observation_id = o.id
+  GROUP BY o.id
+)
+UPDATE observations o
+SET
+  total_score = aggregated.total_score,
+  max_score = aggregated.max_score,
+  percentage = CASE
+    WHEN aggregated.max_score = 0 THEN 0
+    ELSE ROUND((aggregated.total_score / aggregated.max_score) * 100, 2)
+  END,
+  violations_count = aggregated.violations_count
+FROM aggregated
+WHERE o.id = aggregated.observation_id;
+
+-- 6.4. Удаляем старые поля из observation_signatures.
+ALTER TABLE observation_signatures
+  DROP COLUMN IF EXISTS provider;
+
+ALTER TABLE observation_signatures
+  DROP COLUMN IF EXISTS certificate_thumbprint;
+
+-- 6.5. Удаляем больше не нужный enum, если он остался.
+DROP TYPE IF EXISTS observation_signatures_provider_enum;
+
+COMMIT;
+
+7. Проверить итоговую структуру.
+
+Проверка для checklist_criteria:
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'checklist_criteria'
+ORDER BY ordinal_position;
+
+Ожидаемо:
+- is_required в списке нет.
+
+Проверка для observation_signatures:
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'observation_signatures'
+ORDER BY ordinal_position;
+
+Ожидаемо:
+- provider нет;
+- certificate_thumbprint нет;
+- signed_by_name, document_digest, signed_digest, raw_payload, signed_at остались.
+
+8. Проверить пересчет данных observations.
+
+Полезные запросы:
+
+SELECT
+  id,
+  position,
+  total_score,
+  max_score,
+  percentage,
+  violations_count
+FROM observations
+ORDER BY observation_date DESC
+LIMIT 20;
+
+SELECT
+  o.id,
+  o.position AS observation_position,
+  t.position AS template_position
+FROM observations o
+JOIN checklist_templates t ON t.id = o.template_id
+WHERE o.position IS DISTINCT FROM t.position;
+
+Ожидаемо:
+- второй запрос должен вернуть 0 строк.
+
+9. После миграции оставить DB_SYNC=false и запустить backend.
+
+Это безопаснее для уже рабочей и заполненной базы.
+
+10. После запуска проверить в приложении:
+- вход по табельному номеру;
+- список сотрудников;
+- создание нового КЛН;
+- подписание КЛН;
+- карточку старых КЛН;
+- отчет по премированию.
+
+Что можно не делать
+
+- поле employees.department удалять не нужно;
+- old raw_payload в observation_signatures очищать не нужно;
+- signed_by_name менять не нужно, это как раз историческое ФИО подписанта на момент подписи.
+
+Когда лучше не выполнять скрипт без дополнительной проверки
+
+- если в старой БД observations.position вручную хранил значимую историческую информацию, отличную от шаблона;
+- если нужно сохранить признак того, что старая подпись была именно через CryptoPro;
+- если есть сторонние отчеты или интеграции, которые до сих пор читают is_required, provider или certificate_thumbprint.
+
+В этих случаях сначала лучше сделать копию базы и отдельно проверить затрагиваемые записи.
