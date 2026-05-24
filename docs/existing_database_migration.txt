@@ -15,6 +15,8 @@
 - CryptoPro больше не используется;
 - в observation_signatures должны остаться signed_by_name, document_digest, signed_digest, raw_payload и signed_at;
 - поля provider и certificate_thumbprint больше не нужны;
+- поле department в employees больше не используется;
+- поле version в checklist_templates больше не используется;
 - enum observation_signatures_provider_enum больше не нужен.
 
 Что сделать
@@ -122,7 +124,15 @@ ALTER TABLE observation_signatures
 ALTER TABLE observation_signatures
   DROP COLUMN IF EXISTS certificate_thumbprint;
 
--- 6.5. Удаляем больше не нужный enum, если он остался.
+-- 6.5. Удаляем больше не используемое поле подразделения сотрудника.
+ALTER TABLE employees
+  DROP COLUMN IF EXISTS department;
+
+-- 6.6. Удаляем больше не используемое поле версии шаблона.
+ALTER TABLE checklist_templates
+  DROP COLUMN IF EXISTS version;
+
+-- 6.7. Удаляем больше не нужный enum, если он остался.
 DROP TYPE IF EXISTS observation_signatures_provider_enum;
 
 COMMIT;
@@ -191,7 +201,6 @@ WHERE o.position IS DISTINCT FROM t.position;
 
 Что можно не делать
 
-- поле employees.department удалять не нужно;
 - old raw_payload в observation_signatures очищать не нужно;
 - signed_by_name менять не нужно, это как раз историческое ФИО подписанта на момент подписи.
 

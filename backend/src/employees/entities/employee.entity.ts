@@ -37,9 +37,6 @@ export class Employee {
   @Column()
   position: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  department?: string;
-
   @Column({ name: 'hire_date', type: 'date', nullable: true })
   hireDate?: string;
 

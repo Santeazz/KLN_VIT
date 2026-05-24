@@ -102,7 +102,6 @@ export class EmployeesService {
         firstName: dto.firstName,
         middleName: dto.middleName,
         position: dto.position,
-        department: dto.department,
         hireDate: dto.hireDate,
         isActive: dto.isActive ?? true,
       });

@@ -21,7 +21,6 @@ export interface Employee {
   middleName?: string | null;
   fullName: string;
   position: string;
-  department?: string;
   hireDate?: string;
   isActive: boolean;
 }
@@ -38,7 +37,6 @@ export interface ChecklistTemplate {
   id: string;
   title: string;
   position: string;
-  version: number;
   isActive: boolean;
   criteria: ChecklistCriterion[];
 }

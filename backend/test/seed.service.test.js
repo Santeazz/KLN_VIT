@@ -40,7 +40,7 @@ test('SeedService.onApplicationBootstrap seeds users, employees and templates', 
 
   assert.equal(employeeCalls.length, 4);
   assert.ok(templateCalls.length > 5);
-  assert.equal(templateCalls[0].version, 2024);
+  assert.equal(templateCalls[0].position, 'Кухня');
   assert.equal(templateCalls[0].criteria[0].sortOrder, 1);
   assert.equal(templateCalls[0].criteria[0].maxScore, 1);
 });

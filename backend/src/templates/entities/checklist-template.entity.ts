@@ -19,9 +19,6 @@ export class ChecklistTemplate {
   @Column()
   position: string;
 
-  @Column({ default: 1 })
-  version: number;
-
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

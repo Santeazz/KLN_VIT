@@ -67,7 +67,6 @@ function makeEmployee() {
     middleName: 'Сергеевна',
     fullName: 'Иванова Мария Сергеевна',
     position: 'Работник ПБО',
-    department: 'Зал',
     hireDate: '2024-04-15',
     isActive: true,
   };
@@ -78,7 +77,6 @@ function makeTemplate() {
     id: 'template-1',
     title: 'Шаблон кассы',
     position: 'Кассовая зона',
-    version: 1,
     isActive: true,
     criteria: [
       {
@@ -236,6 +234,37 @@ describe('App.vue', () => {
     expect(menuText).toContain('Премирование');
     expect(menuText).toContain('Персонал');
     expect(menuText).not.toContain('Шаблоны');
+  });
+
+  it('opens and closes the template form on demand', async () => {
+    localStorage.setItem('kln_token', 'stored-token');
+    apiMock.me.mockResolvedValue(makeUser('manager'));
+
+    const wrapper = mount(App);
+    await flushUi();
+    await wrapper.get('.menu-toggle').trigger('click');
+    await getMenuButton(wrapper, 'Шаблоны').trigger('click');
+    await flushUi();
+
+    expect(wrapper.find('.template-form-panel').exists()).toBe(false);
+
+    const newTemplateButton = wrapper
+      .findAll('button')
+      .find((item) => item.text().includes('Новый шаблон'));
+    if (!newTemplateButton) throw new Error('New template button not found');
+    await newTemplateButton.trigger('click');
+    await flushUi();
+
+    expect(wrapper.find('.template-form-panel').exists()).toBe(true);
+
+    const closeButton = wrapper
+      .findAll('.template-form-panel button')
+      .find((item) => item.text().includes('Закрыть'));
+    if (!closeButton) throw new Error('Close template form button not found');
+    await closeButton.trigger('click');
+    await flushUi();
+
+    expect(wrapper.find('.template-form-panel').exists()).toBe(false);
   });
 
   it('shows the employees-only personnel view for observers', async () => {

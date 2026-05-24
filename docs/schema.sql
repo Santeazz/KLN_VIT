@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS employees (
   first_name varchar NOT NULL,
   middle_name varchar,
   position varchar NOT NULL,
-  department varchar,
   hire_date date,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamp NOT NULL DEFAULT now(),
@@ -48,7 +47,6 @@ CREATE TABLE IF NOT EXISTS checklist_templates (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   title varchar NOT NULL,
   position varchar NOT NULL,
-  version integer NOT NULL DEFAULT 1,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL DEFAULT now()

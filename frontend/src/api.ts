@@ -48,7 +48,6 @@ export interface EmployeePayload {
   firstName: string;
   middleName?: string;
   position: string;
-  department?: string;
   hireDate?: string;
   isActive?: boolean;
 }
@@ -63,7 +62,6 @@ export interface TemplateCriterionPayload {
 export interface TemplatePayload {
   title: string;
   position: string;
-  version?: number;
   isActive?: boolean;
   criteria: TemplateCriterionPayload[];
 }

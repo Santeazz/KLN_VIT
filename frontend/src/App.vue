@@ -75,6 +75,7 @@ const selectedObservation = ref<Observation | null>(null);
 const activePersonnelTab = ref<PersonnelTab>('users');
 const userSearchQuery = ref('');
 const employeeSearchQuery = ref('');
+const showTemplateForm = ref(false);
 
 const selectedUserId = ref('');
 const userFormMode = ref<FormMode>('create');
@@ -98,7 +99,6 @@ const employeeForm = reactive({
   firstName: '',
   middleName: '',
   position: '',
-  department: '',
   hireDate: '',
   isActive: true,
 });
@@ -108,7 +108,6 @@ const templateFormMode = ref<FormMode>('create');
 const templateForm = reactive({
   title: '',
   position: '',
-  version: 1,
   isActive: true,
   criteria: [] as TemplateCriterionForm[],
 });
@@ -228,7 +227,6 @@ const filteredEmployees = computed(() => {
       employee.employeeNumber,
       employee.personnelNumber ?? '',
       employee.position,
-      employee.department ?? '',
     ]
       .join(' ')
       .toLowerCase()
@@ -447,7 +445,6 @@ function resetEmployeeForm() {
   employeeForm.firstName = '';
   employeeForm.middleName = '';
   employeeForm.position = '';
-  employeeForm.department = '';
   employeeForm.hireDate = '';
   employeeForm.isActive = true;
 }
@@ -459,7 +456,6 @@ function fillEmployeeForm(employee: Employee) {
   employeeForm.firstName = employee.firstName;
   employeeForm.middleName = employee.middleName ?? '';
   employeeForm.position = employee.position;
-  employeeForm.department = employee.department ?? '';
   employeeForm.hireDate = employee.hireDate ?? '';
   employeeForm.isActive = employee.isActive;
 }
@@ -486,7 +482,6 @@ function resetTemplateForm() {
   templateFormMode.value = 'create';
   templateForm.title = '';
   templateForm.position = '';
-  templateForm.version = 1;
   templateForm.isActive = true;
   templateForm.criteria = [createEmptyCriterion(1)];
 }
@@ -494,7 +489,6 @@ function resetTemplateForm() {
 function fillTemplateForm(template: ChecklistTemplate) {
   templateForm.title = template.title;
   templateForm.position = template.position;
-  templateForm.version = template.version;
   templateForm.isActive = template.isActive;
   templateForm.criteria = [...template.criteria]
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -515,12 +509,19 @@ async function loadTemplateDetail(id: string) {
 
 function startCreatingTemplate() {
   resetTemplateForm();
+  showTemplateForm.value = true;
 }
 
 async function editTemplate(id: string) {
   await withLoading(async () => {
     await loadTemplateDetail(id);
+    showTemplateForm.value = true;
   });
+}
+
+function closeTemplateForm() {
+  showTemplateForm.value = false;
+  resetTemplateForm();
 }
 
 function addTemplateCriterion() {
@@ -730,7 +731,6 @@ function buildEmployeePayload(): EmployeePayload {
     firstName: employeeForm.firstName.trim(),
     middleName: employeeForm.middleName.trim() || undefined,
     position: employeeForm.position.trim(),
-    department: employeeForm.department.trim() || undefined,
     hireDate: employeeForm.hireDate || undefined,
     isActive: employeeForm.isActive,
   };
@@ -740,7 +740,6 @@ function buildTemplatePayload(): TemplatePayload {
   return {
     title: templateForm.title.trim(),
     position: templateForm.position.trim(),
-    version: Number(templateForm.version),
     isActive: templateForm.isActive,
     criteria: templateForm.criteria.map((criterion) => ({
       sortOrder: Number(criterion.sortOrder),
@@ -818,13 +817,13 @@ async function saveTemplate() {
 
     if (templateFormMode.value === 'create') {
       await api.createTemplate(payload);
-      resetTemplateForm();
       setMessage('Шаблон создан');
     } else {
       await api.updateTemplate(selectedTemplateId.value, payload);
       setMessage('Шаблон обновлен');
     }
 
+    closeTemplateForm();
     await loadData();
   });
 }
@@ -1063,17 +1062,15 @@ onMounted(async () => {
           <img src="/vkusno-logo.svg" alt="Логотип Вкусно — и точка" class="brand-logo" />
           <div class="brand-copy">
             <p class="brand-mark">Вкусно — и точка</p>
-            <span class="brand-caption">КЛН и контроль качества смены</span>
+            <span class="brand-caption">Рабочий кабинет</span>
           </div>
         </div>
 
-        <h1>Контрольные листы наблюдения в фирменном рабочем кабинете</h1>
-        <p class="lead">
-          Вход по табельному номеру и паролю. Оформляйте КЛН, собирайте подписи и
-          формируйте отчетность по премированию в одном интерфейсе.
-        </p>
-
         <form class="login-form" @submit.prevent="login">
+          <div class="login-form__title">
+            <span>Авторизация</span>
+            <h1>Вход в систему</h1>
+          </div>
           <label>
             Табельный номер
             <input v-model="loginForm.tabNumber" autocomplete="username" />
@@ -1088,6 +1085,12 @@ onMounted(async () => {
       </div>
 
       <div class="login-visual">
+        <div class="login-visual-copy">
+          <h2>
+            Контрольные листы наблюдения
+            <span>в фирменном рабочем кабинете</span>
+          </h2>
+        </div>
         <img
           src="/inspection-floor.svg"
           alt="Смена предприятия общественного питания"
@@ -1168,7 +1171,7 @@ onMounted(async () => {
     </aside>
 
     <main class="main-content">
-      <div class="topline">
+      <div v-if="view === 'dashboard' || view === 'observations'" class="topline">
         <label class="period-filter">
           Период
           <input v-model="filterMonth" type="month" @change="refreshObservations" />
@@ -1712,7 +1715,7 @@ onMounted(async () => {
             <input
               v-model="employeeSearchQuery"
               type="search"
-              placeholder="ФИО, должность, подразделение или номер сотрудника"
+              placeholder="ФИО, должность или номер сотрудника"
             />
           </label>
 
@@ -1791,9 +1794,6 @@ onMounted(async () => {
 
                 <div class="person-card__meta">
                   <span class="person-pill">{{ employee.position }}</span>
-                  <span v-if="employee.department" class="person-pill person-pill-muted">
-                    {{ employee.department }}
-                  </span>
                   <span v-if="employee.hireDate" class="person-pill person-pill-soft">
                     Принят: {{ employee.hireDate }}
                   </span>
@@ -1939,11 +1939,6 @@ onMounted(async () => {
               </label>
 
               <label>
-                Подразделение
-                <input v-model="employeeForm.department" />
-              </label>
-
-              <label>
                 Дата приема
                 <input v-model="employeeForm.hireDate" type="date" />
               </label>
@@ -1994,9 +1989,23 @@ onMounted(async () => {
           </button>
         </div>
 
-        <form v-if="canManageTemplates" class="surface-card admin-form" @submit.prevent="saveTemplate">
+        <form
+          v-if="canManageTemplates && showTemplateForm"
+          class="surface-card admin-form template-form-panel"
+          @submit.prevent="saveTemplate"
+        >
           <div class="panel-header">
-            <h1>{{ templateFormMode === 'create' ? 'Создание шаблона' : 'Редактирование шаблона' }}</h1>
+            <div>
+              <h1>{{ templateFormMode === 'create' ? 'Создание шаблона' : 'Редактирование шаблона' }}</h1>
+              <p>
+                {{ templateFormMode === 'create'
+                  ? 'Заполните рабочую зону и критерии нового КЛН.'
+                  : 'Измените параметры шаблона и актуальный набор критериев.' }}
+              </p>
+            </div>
+            <button class="secondary table-action" type="button" :disabled="loading" @click="closeTemplateForm">
+              Закрыть
+            </button>
           </div>
 
           <div class="form-grid form-grid-2">
@@ -2008,11 +2017,6 @@ onMounted(async () => {
             <label>
               Рабочая зона
               <input v-model="templateForm.position" />
-            </label>
-
-            <label>
-              Версия
-              <input v-model.number="templateForm.version" type="number" min="1" />
             </label>
           </div>
 
@@ -2077,6 +2081,9 @@ onMounted(async () => {
             <button class="secondary" type="button" :disabled="loading" @click="startCreatingTemplate">
               Очистить форму
             </button>
+            <button class="secondary" type="button" :disabled="loading" @click="closeTemplateForm">
+              Закрыть
+            </button>
           </div>
         </form>
 
@@ -2088,12 +2095,11 @@ onMounted(async () => {
                 <p>{{ template.position }}</p>
                 <div class="template-meta">
                   <span class="person-pill">Критериев: {{ template.criteria.length }}</span>
-                  <span class="person-pill person-pill-muted">Версия {{ template.version }}</span>
                 </div>
               </div>
               <div class="template-actions">
                 <span class="badge" :class="template.isActive ? 'badge-ok' : 'badge-danger'">
-                  {{ template.isActive ? `Версия ${template.version}` : `Неактивен · v${template.version}` }}
+                  {{ template.isActive ? 'Активен' : 'Неактивен' }}
                 </span>
                 <button
                   v-if="canManageTemplates"

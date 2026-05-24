@@ -30,7 +30,6 @@ export class TemplatesService {
     const template = this.templatesRepository.create({
       title: dto.title,
       position: dto.position,
-      version: dto.version ?? 1,
       isActive: dto.isActive ?? true,
       criteria: dto.criteria.map((criterion) => ({ ...criterion })),
     });
@@ -42,7 +41,6 @@ export class TemplatesService {
 
     template.title = dto.title ?? template.title;
     template.position = dto.position ?? template.position;
-    template.version = dto.version ?? template.version;
     template.isActive = dto.isActive ?? template.isActive;
 
     if (dto.criteria) {
@@ -69,9 +67,9 @@ export class TemplatesService {
 
   async ensureSeedTemplate(dto: CreateTemplateDto) {
     const existing = await this.templatesRepository.findOne({
-      where: { title: dto.title, version: dto.version ?? 1 },
+      where: { title: dto.title, position: dto.position },
     });
-    if (existing) return existing;
+    if (existing) return this.update(existing.id, dto);
     return this.create(dto);
   }
 }

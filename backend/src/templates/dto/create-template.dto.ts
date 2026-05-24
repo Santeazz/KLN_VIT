@@ -61,16 +61,6 @@ export class CreateTemplateDto {
   position: string;
 
   @ApiPropertyOptional({
-    description: 'Версия шаблона',
-    example: 1,
-    minimum: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  version?: number;
-
-  @ApiPropertyOptional({
     description: 'Признак активности шаблона',
     example: true,
     default: true,

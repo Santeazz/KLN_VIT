@@ -17,10 +17,10 @@ function createTemplatesService(initialTemplates = [], overrides = {}) {
       if (where?.id) {
         return templates.find((item) => item.id === where.id) ?? null;
       }
-      if (where?.title && where?.version !== undefined) {
+      if (where?.title && where?.position) {
         return (
           templates.find(
-            (item) => item.title === where.title && Number(item.version) === Number(where.version),
+            (item) => item.title === where.title && item.position === where.position,
           ) ?? null
         );
       }
@@ -102,7 +102,7 @@ test('TemplatesService.getRequired sorts criteria by sortOrder', async () => {
   );
 });
 
-test('TemplatesService.create applies default version and active flag', async () => {
+test('TemplatesService.create applies default active flag', async () => {
   const { service } = createTemplatesService();
 
   const template = await service.create({
@@ -118,7 +118,6 @@ test('TemplatesService.create applies default version and active flag', async ()
     ],
   });
 
-  assert.equal(template.version, 1);
   assert.equal(template.isActive, true);
   assert.equal(template.criteria.length, 1);
 });
@@ -129,7 +128,6 @@ test('TemplatesService.update replaces criteria when dto.criteria is provided', 
       id: 'template-2',
       title: 'Old template',
       position: 'Kitchen',
-      version: 1,
       isActive: true,
       criteria: [{ id: 'criterion-old', sortOrder: 1 }],
     },
@@ -167,7 +165,6 @@ test('TemplatesService.update keeps old criteria when dto.criteria is omitted', 
       id: 'template-3',
       title: 'Template',
       position: 'Cash desk',
-      version: 1,
       isActive: true,
       criteria: [{ id: 'criterion-1', sortOrder: 1, title: 'Existing criterion' }],
     },
@@ -175,10 +172,8 @@ test('TemplatesService.update keeps old criteria when dto.criteria is omitted', 
 
   const updated = await service.update('template-3', {
     isActive: false,
-    version: 2,
   });
 
-  assert.equal(updated.version, 2);
   assert.equal(updated.isActive, false);
   assert.equal(updated.criteria.length, 1);
   assert.equal(updated.criteria[0].title, 'Existing criterion');

@@ -69,7 +69,6 @@ test('EmployeesService.create applies default isActive and returns employee with
     firstName: 'Darya',
     middleName: 'Sergeevna',
     position: 'Worker',
-    department: 'Hall',
   });
 
   assert.equal(result.id, 'generated-employee-id-1');
@@ -140,18 +139,15 @@ test('EmployeesService.update persists changed employee fields', async () => {
       lastName: 'Ivanova',
       firstName: 'Darya',
       position: 'Worker',
-      department: 'Hall',
       isActive: true,
     },
   ]);
 
   const updated = await service.update('employee-1', {
-    department: 'Kitchen',
     position: 'Senior worker',
     isActive: false,
   });
 
-  assert.equal(updated.department, 'Kitchen');
   assert.equal(updated.position, 'Senior worker');
   assert.equal(updated.isActive, false);
 });
@@ -176,13 +172,11 @@ test('EmployeesService.ensureSeedEmployee refreshes existing employee card', asy
     firstName: 'Irina',
     middleName: 'Sergeevna',
     position: 'Worker',
-    department: 'Hall',
     hireDate: '2026-01-15',
   });
 
   assert.equal(result.id, 'employee-1');
   assert.equal(employees[0].lastName, 'Volkova');
-  assert.equal(employees[0].department, 'Hall');
   assert.equal(employees[0].isActive, true);
 });
 

@@ -574,7 +574,6 @@ export class SeedService implements OnApplicationBootstrap {
         this.templatesService.ensureSeedTemplate({
           title: template.title,
           position: template.position,
-          version: 2024,
           criteria: makeCriteria(template.criteria),
         }),
       ),

@@ -46,14 +46,6 @@ export class CreateEmployeeDto {
   position: string;
 
   @ApiPropertyOptional({
-    description: 'Подразделение сотрудника',
-    example: 'Зал',
-  })
-  @IsOptional()
-  @IsString()
-  department?: string;
-
-  @ApiPropertyOptional({
     description: 'Дата приема на работу',
     example: '2026-05-15',
     format: 'date',
